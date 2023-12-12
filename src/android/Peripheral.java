@@ -53,6 +53,7 @@ public class Peripheral extends BluetoothGattCallback {
 
     private BluetoothDevice device;
     private byte[] advertisingData;
+    private String advertsingName = null;
     private Boolean isConnectable = null;
     private int advertisingRSSI;
     private boolean autoconnect = false;
@@ -84,10 +85,11 @@ public class Peripheral extends BluetoothGattCallback {
 
     }
 
-    public Peripheral(BluetoothDevice device, int advertisingRSSI, byte[] scanRecord, Boolean isConnectable) {
+    public Peripheral(BluetoothDevice device, int advertisingRSSI, byte[] scanRecord, String advertsingName, Boolean isConnectable) {
         this.device = device;
         this.advertisingRSSI = advertisingRSSI;
         this.advertisingData = scanRecord;
+        this.advertsingName = advertsingName;
         this.isConnectable = isConnectable;
     }
 
@@ -271,7 +273,11 @@ public class Peripheral extends BluetoothGattCallback {
         JSONObject json = new JSONObject();
 
         try {
-            json.put("name", device.getName());
+            if (this.advertsingName != null) {
+                json.put("name", this.advertsingName);
+            } else {
+                json.put("name", device.getName());
+            }
             json.put("id", device.getAddress()); // mac address
             if (advertisingData != null) {
                 json.put("advertising", byteArrayToJSON(advertisingData));
