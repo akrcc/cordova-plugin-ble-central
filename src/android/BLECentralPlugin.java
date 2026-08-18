@@ -152,6 +152,7 @@ public class BLECentralPlugin extends CordovaPlugin {
     CallbackContext stateCallback;
     BroadcastReceiver stateReceiver;
     private BroadcastReceiver bondStateReceiver;
+    private final Map<String, CallbackContext> bondCallbacks = new LinkedHashMap<String, CallbackContext>();
 
     Map<Integer, String> bluetoothStates = new Hashtable<Integer, String>() {{
         put(BluetoothAdapter.STATE_OFF, "off");
@@ -177,6 +178,7 @@ public class BLECentralPlugin extends CordovaPlugin {
         removeStateListener();
         removeLocationStateListener();
         removeBondStateListener();
+        bondCallbacks.clear();
         for(Peripheral peripheral : peripherals.values()) {
             peripheral.disconnect();
         }
@@ -188,6 +190,7 @@ public class BLECentralPlugin extends CordovaPlugin {
         removeStateListener();
         removeLocationStateListener();
         removeBondStateListener();
+        bondCallbacks.clear();
         for(Peripheral peripheral : peripherals.values()) {
             peripheral.disconnect();
         }
@@ -897,6 +900,9 @@ public class BLECentralPlugin extends CordovaPlugin {
         Peripheral peripheral = peripherals.get(macAddress);
         if (peripheral != null) {
             addBondStateListener();
+            if (!peripheral.isBonded()) {
+                bondCallbacks.put(macAddress, callbackContext);
+            }
             peripheral.bond(callbackContext, bluetoothAdapter, usePairingDialog);
         } else {
             callbackContext.error("Peripheral " + macAddress + " not found.");
@@ -1515,17 +1521,39 @@ public class BLECentralPlugin extends CordovaPlugin {
                         } else {
                             device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                         }
-                        Peripheral peripheral = device != null ? peripherals.get(device.getAddress()) : null;
+                        String address = device != null ? device.getAddress() : null;
+                        Peripheral peripheral = address != null ? peripherals.get(address) : null;
+                        int bondState = intent.getIntExtra(EXTRA_BOND_STATE, BluetoothDevice.ERROR);
+                        int previousBondState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, -1);
 
+                        boolean handled = false;
                         if (peripheral != null) {
-                            int bondState = intent.getIntExtra(EXTRA_BOND_STATE, BluetoothDevice.ERROR);
-                            int previousBondState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, -1);
-                            peripheral.updateBondState(bondState, previousBondState);
+                            handled = peripheral.updateBondState(bondState, previousBondState);
+                        }
+
+                        if (handled && (bondState == BluetoothDevice.BOND_BONDED || bondState == BluetoothDevice.BOND_NONE)) {
+                            bondCallbacks.remove(address);
+                        } else if (address != null) {
+                            handleBondCallback(address, bondState);
                         }
                     }
                 }
             };
             webView.getContext().registerReceiver(bondStateReceiver, new IntentFilter(ACTION_BOND_STATE_CHANGED));
+        }
+    }
+
+    private void handleBondCallback(String address, int bondState) {
+        CallbackContext callback = bondCallbacks.get(address);
+        if (callback == null) return;
+
+        if (bondState == BluetoothDevice.BOND_BONDED || bondState == BluetoothDevice.BOND_NONE) {
+            if (bondState == BluetoothDevice.BOND_BONDED) {
+                callback.success();
+            } else {
+                callback.error("Unsuccessful bond state: " + bondState);
+            }
+            bondCallbacks.remove(address);
         }
     }
 

@@ -1171,9 +1171,15 @@ public class Peripheral extends BluetoothGattCallback {
         }
     }
 
-    public void updateBondState(int bondState, int previousBondState) {
+    public boolean isBonded() {
+        return device.getBondState() == BluetoothDevice.BOND_BONDED;
+    }
+
+    public boolean updateBondState(int bondState, int previousBondState) {
         LOG.d(TAG, "Bonding state update %s => %s", previousBondState, bondState);
-        if (bondStateCallback == null) return;
+        if (bondStateCallback == null) {
+            return false;
+        }
 
         if (bondState == BluetoothDevice.BOND_BONDED || bondState == BluetoothDevice.BOND_NONE) {
             if (bondState == BluetoothDevice.BOND_BONDED) {
@@ -1183,6 +1189,7 @@ public class Peripheral extends BluetoothGattCallback {
             }
             bondStateCallback = null;
         }
+        return true;
     }
 
     @RequiresPermission("android.permission.BLUETOOTH_CONNECT")
