@@ -1168,7 +1168,7 @@ public class BLECentralPlugin extends CordovaPlugin {
         @SuppressLint("MissingPermission")
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
-            LOG.w(TAG, "Scan Result");
+            LOG.d(TAG, "Scan Result");
             super.onScanResult(callbackType, result);
             BluetoothDevice device = result.getDevice();
             String address = device.getAddress();
